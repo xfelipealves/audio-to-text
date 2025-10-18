@@ -1,0 +1,30 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*.pyo
+*.so
+
+# Virtual environments
+.venv/
+env/
+venv/
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+
+# macOS metadata
+.DS_Store
+
+# Python tooling
+.python-version
+pip-wheel-metadata/
+
+# Logs / caches
+*.log
+.mypy_cache/
+.pytest_cache/
+
+# Whisper downloads
+models/
