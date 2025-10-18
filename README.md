@@ -2,6 +2,16 @@
 
 Aplicativo desktop simples que grava áudio do microfone no macOS e transcreve em texto usando o modelo Whisper via **faster-whisper**. Ideal para rascunhar ideias faladas, registrar reuniões curtas ou fazer anotações rápidas em português com termos técnicos em inglês.
 
+```mermaid
+flowchart TD
+    A[Usuário clica em Start Recording] --> B[Captura com sounddevice]
+    B --> C[Buffer de áudio em memória]
+    C --> D[Thread de transcrição]
+    D --> E[faster-whisper (modelo base por padrão)]
+    E --> F[Texto formatado em PT-BR]
+    F --> G[Exibição no Tkinter + botão Copy Text]
+```
+
 ## Recursos
 - Janela única em Tkinter, com botão para iniciar/parar a gravação.
 - Indicador de tempo durante a captura de áudio.
