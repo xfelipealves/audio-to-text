@@ -7,9 +7,9 @@ flowchart TD
     A[Usuário clica em Start Recording] --> B[Captura com sounddevice]
     B --> C[Buffer de áudio em memória]
     C --> D[Thread de transcrição]
-    D --> E[faster-whisper (modelo base por padrão)]
+    D --> E["faster-whisper (modelo base por padrão)"]
     E --> F[Texto formatado em PT-BR]
-    F --> G[Exibição no Tkinter + botão Copy Text]
+    F --> G["Tkinter UI + botão Copy Text"]
 ```
 
 ## Recursos
