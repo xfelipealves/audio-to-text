@@ -1,84 +1,128 @@
 # Audio to Text
 
-Aplicativo desktop Python/Tkinter para notas de voz em português brasileiro, com transcrição local usando faster-whisper. Esta versão de portfólio acrescenta histórico persistente, exportação Markdown e demonstração com dados fictícios.
+A local-first Python/Tkinter desktop app for Brazilian Portuguese voice notes. It records from the microphone only when you ask, transcribes on your machine with [faster-whisper](https://github.com/SYSTRAN/faster-whisper), and keeps a persistent history you can copy, export to Markdown, or delete. A `--demo` mode shows the whole flow with fictional data and never touches the microphone or the model.
 
-## Recursos
+The interface text is intentionally in Brazilian Portuguese, the language the app transcribes. Code, comments, and documentation are in English.
 
-- Interface em português com histórico selecionável e área de leitura.
-- Estados explícitos de gravação, carregamento do modelo, transcrição e erro.
-- Histórico JSON local, exclusão confirmada e exportação Markdown da nota selecionada.
-- Cópia da nota selecionada para a área de transferência.
-- Modelo `base` em CPU/int8, carregado na primeira transcrição e reutilizado na sessão.
-- Modo `--demo` sem acesso ao microfone nem download/carregamento de modelo.
+## Features
 
-## Instalação local
+- Desktop window with a selectable history sidebar and a reading pane.
+- Explicit states: ready, recording (with timer), loading model, transcribing, and error.
+- Background worker thread that talks to the UI only through a `queue.Queue` drained on the Tk main loop.
+- Lazy model loading: `faster-whisper` is imported and the `base` model (CPU, int8) is created on the first real transcription, then reused for the session.
+- Persistent JSON history with atomic writes; corrupt or externally edited files are preserved, never overwritten.
+- Copy the selected note, export it to Markdown (atomic write), or delete it after confirmation.
+- `--demo` mode with fictional notes and a separate history file; no microphone, audio libraries, or model.
 
-Requer Python 3.11+ **com Tkinter funcional**. Tkinter depende da instalação do Python e não é fornecido pelo requirements.txt. O Python Homebrew disponível nesta sessão não possui a extensão `_tkinter`; use um interpretador com Tk e recrie o ambiente com ele antes de abrir a interface.
+## Requirements
 
-No diretório deste checkout:
+- macOS (primary target). Linux should work but is untested.
+- Python 3.11+ **with a working Tkinter**. Tkinter ships with the interpreter, not with `pip`. Check it with:
 
-```bash
-rtk proxy python3 -m venv .venv
-rtk proxy .venv/bin/python -m pip install -r requirements.txt
-rtk proxy .venv/bin/python -m pip check
-```
+  ```bash
+  python3 -m tkinter
+  ```
 
-O ambiente .venv não é versionado. A demo dispensa as dependências de áudio, mas Tkinter é necessário nos dois modos. A primeira transcrição real pode baixar o modelo e exigir conexão; execuções posteriores reutilizam o cache local.
+  A small Tk window should open. Homebrew's `python@3.14` currently lacks the `_tkinter` extension; the [python.org installer](https://www.python.org/downloads/macos/) or a `uv`-managed Python includes Tk.
+- For real recordings: a microphone, macOS microphone permission for the launching app, and network access for the first model download.
 
-## Demonstração sem áudio real
-
-```bash
-rtk proxy .venv/bin/python transcriber_app.py --demo
-```
-
-Use a demo para apresentar notas fictícias, simular o fluxo, copiar, apagar e exportar. Ela usa armazenamento separado do histórico real. Não use conversas reais ou gravações em imagens/GIF de portfólio.
-
-## Gravação e transcrição
+## Installation
 
 ```bash
-rtk proxy .venv/bin/python transcriber_app.py
+git clone git@github.com:xfelipealves/audio-to-text.git
+cd audio-to-text
+python3 -m venv .venv            # use a Python that passes `python3 -m tkinter`
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python -m pip check
 ```
 
-1. Inicie a gravação somente quando quiser participar da captura. O aplicativo não grava ao abrir.
-2. Fale em português brasileiro e clique para parar e transcrever.
-3. Aguarde o carregamento do modelo na primeira utilização e a transcrição em segundo plano.
-4. Selecione uma nota para copiar, exportar ou apagar. Falhas aparecem na interface e preservam notas anteriores.
+`.venv`, bytecode, and downloaded models are not tracked. The demo needs only Tkinter; the audio dependencies are required for real recordings.
 
-No macOS, a primeira gravação pode solicitar permissão de microfone para o Python ou terminal que iniciou o aplicativo. Caso necessário, revise **Ajustes do Sistema > Privacidade e Segurança > Microfone** e reinicie após mudar a permissão.
+## Demo without real audio
 
-## Histórico e privacidade
+```bash
+.venv/bin/python transcriber_app.py --demo
+```
 
-No macOS, as notas ficam em:
+Click **Simular gravação**, then **Concluir simulação** to generate a fictional note. Copy, export, and delete work as in the real mode. Demo notes are stored in a separate file. Use only demo mode for screenshots or recordings meant for a portfolio.
 
-- `~/Library/Application Support/Audio to Text/history.json`
-- `~/Library/Application Support/Audio to Text/demo-history.json` (somente demo)
+## Recording and transcription
 
-Nos demais sistemas, o diretório é `~/.local/share/audio-to-text`. A persistência usa substituição atômica. Se o JSON estiver corrompido, o arquivo é preservado e a escrita é bloqueada; faça uma cópia de segurança e recupere ou renomeie o arquivo antes de reiniciar. A interface informa falhas de armazenamento.
+```bash
+.venv/bin/python transcriber_app.py
+```
 
-O áudio fica em memória e não é salvo em arquivo pelo aplicativo. **O texto das notas é persistido em disco sem criptografia.** Exportar cria Markdown no destino escolhido; copiar coloca texto na área de transferência do sistema. Apagar uma nota não remove exportações, backups ou conteúdo copiado.
+1. Click **Iniciar gravação** when you are ready. The app never records on launch.
+2. Speak in Brazilian Portuguese; English technical terms are preserved when possible.
+3. Click **Parar e transcrever**. The first run loads (and may download) the model; later runs reuse it.
+4. Select a note in the history to copy, export, or delete. Errors are shown in the window and never erase existing notes.
 
-A transcrição é local após o modelo estar disponível. O download inicial exige rede; não se presume que o cache do provedor ou a área de transferência sejam livres de acesso à rede.
+On macOS the first recording may trigger a microphone permission prompt for Python or the terminal. If access was denied, enable it in **System Settings > Privacy & Security > Microphone** and restart the app.
 
-## Arquitetura
+## History and privacy
+
+History files:
+
+| Platform | Real notes | Demo notes |
+| --- | --- | --- |
+| macOS | `~/Library/Application Support/Audio to Text/history.json` | `.../demo-history.json` |
+| Other | `~/.local/share/audio-to-text/history.json` | `.../demo-history.json` |
+
+Writes go to a temporary file in the same directory, are `fsync`ed, and then replace the original with `os.replace`. If the file is corrupt, has an unknown version, mixes demo and real notes, or was changed by another process, the app preserves it, blocks further writes, and keeps new notes for the current session only (marked *não salvo*) so you can copy or export them. Back up the file and fix or rename it before restarting.
+
+Audio stays in memory and is never written to disk by the app. **Note text is stored on disk unencrypted.** Exporting writes Markdown where you choose; copying uses the system clipboard. Deleting a note does not remove exports, backups, or clipboard contents. Transcription is local once the model is cached; the first download needs network access, and no claim is made that the model host or clipboard is network-free.
+
+## Architecture
 
 ```mermaid
 flowchart LR
-    A[Ação explícita de gravar] --> B[Áudio mono 16 kHz em memória]
-    B --> C[Worker de transcrição]
-    C --> D[faster-whisper local sob demanda]
-    D --> E[Fila de eventos para Tkinter]
-    E --> F[Histórico JSON local]
-    F --> G[Leitura, cópia e Markdown]
+    A[Explicit record action] --> B[Mono 16 kHz float32 audio in memory]
+    B --> C[Transcription worker thread]
+    C --> D[Lazy local faster-whisper model]
+    D --> E[Event queue drained by Tkinter]
+    E --> F[Atomic JSON history]
+    F --> G[Read, copy, Markdown export]
 ```
 
-O worker comunica progresso e resultados por uma fila, consumida no loop principal do Tkinter. A gravação usa sounddevice e amostras float32. A transcrição mantém `language="pt"`, `beam_size=5`, `temperature=0.0`, VAD e instrução para preservar termos técnicos em inglês. Não há diarização nem timestamps de palavras.
+| File | Responsibility |
+| --- | --- |
+| `transcriber_app.py` | Tkinter UI, state machine, `MicrophoneRecorder` (imports `sounddevice`/`numpy` only on first real recording), worker thread, `--demo` flag |
+| `transcription_history.py` | Record schema, validation, atomic history store, Markdown export |
+| `tests/` | Standard-library `unittest` suite |
 
-## Limites e continuidade
+Transcription uses `language="pt"`, `beam_size=5`, `temperature=0.0`, `condition_on_previous_text=False`, `vad_filter=True`, and an initial prompt asking to keep English technical terms. To trade speed for accuracy, change `"base"` in `_get_model()` to `"small"`, `"medium"`, or another supported model. There is no diarization and no word timestamps.
 
-Importação de áudio, atalho global, instalador e GIF estão planejados em [docs/PORTFOLIO-PLAN.md](docs/PORTFOLIO-PLAN.md), fora desta fatia. Gravações longas consomem memória e o modelo CPU pode demorar. O aplicativo ainda requer validação manual no macOS com Tkinter e dispositivo disponíveis. Instâncias simultâneas compartilham o mesmo arquivo de histórico; evite abrir mais de uma instância do mesmo modo.
+## Tests
 
-Não foram criados nem executados testes nesta tarefa. A revisão estática, compilação de sintaxe e checagem de dependências não comprovam aparência, permissões, qualidade da transcrição ou diálogos nativos. Resultados e roteiro manual estão em [docs/VALIDATION.md](docs/VALIDATION.md).
+```bash
+python3 -m unittest -v
+```
 
-## Licença
+The suite uses only the standard library and temporary directories: 23 history tests (round trip, atomic write failures, corrupt and mixed data, external edits, Markdown export) and 3 demo isolation tests that block `sounddevice`, `numpy`, `faster_whisper`, and `ctranslate2` imports and assert demo notes never reach the real history. The demo tests are skipped when the interpreter has no Tk. No test uses the microphone or downloads a model.
 
-Não há LICENSE no repositório nem declaração de licença de código aberto. Distribuição e instalador dependem de uma decisão de licença antes de publicação.
+## Troubleshooting
+
+- **`No module named '_tkinter'`**: recreate `.venv` with a Python that includes Tk (see Requirements).
+- **Microphone errors**: check permissions and the selected input device, then restart the app.
+- **Slow first transcription**: the model is downloading and loading; later transcriptions reuse it.
+- **No speech detected**: record closer to the microphone or for longer.
+- **English terms changed**: add vocabulary to `initial_prompt` in `transcriber_app.py`.
+- **"Histórico indisponível"**: the history file is invalid or was edited elsewhere; it is preserved untouched. Copy or export new notes, close the app, and repair or rename the file.
+
+## Limitations
+
+- Real recording, model download, transcription quality, native dialogs, and macOS permissions have not been verified automatically; see [docs/VALIDATION.md](docs/VALIDATION.md).
+- Microphone input only; no audio file import yet.
+- Long recordings are held in memory; CPU inference can be slow.
+- Running two instances of the same mode against one history file is not coordinated; the second writer is blocked rather than overwriting.
+- No installer or packaged release.
+
+Planned next steps are in [docs/PORTFOLIO-PLAN.md](docs/PORTFOLIO-PLAN.md).
+
+## Contributing
+
+Open an issue or a focused pull request. Keep the app local-first, update this README when setup or behavior changes, and run the test suite before submitting.
+
+## License
+
+There is no `LICENSE` file and no open-source license is claimed. Obtain permission before redistributing or reusing the code.
