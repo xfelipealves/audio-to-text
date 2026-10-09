@@ -1,56 +1,75 @@
-# Validação da primeira fatia
+# Validation
 
-Data: 2026-10-08. Checkout: `portfolio-audio-to-text`.
+## Integration follow-up — 2026-10-09 (`master`)
 
-## Escopo e evidência
+The feature work was integrated into `master`, unit tests were added, and checks were rerun. No microphone was opened, no audio was captured or faked, and no Whisper model was downloaded or instantiated.
 
-Esta tarefa não criou nem executou testes automatizados ou testes ad hoc de fluxos. Não foi aberta a interface, gravado o microfone, transcrito áudio real ou baixado o modelo. A validação está limitada à revisão estática e aos checks abaixo.
-
-| Verificação | Resultado |
+| Check | Result |
 | --- | --- |
-| Leitura de README, código inicial e instruções | Concluída; nenhum AGENTS.md encontrado no checkout |
-| Estado Git inicial | Limpo |
-| Python disponível | 3.14.8 |
-| Instalação em `.venv` | faster-whisper 1.2.1, sounddevice 0.5.6 e numpy 2.5.3 instalados com dependências |
-| `.venv/bin/python -m pip check` | Passou: `No broken requirements found.` |
-| Disponibilidade de Tk | `find_spec("_tkinter")` retornou `None`; esse interpretador não abre a GUI |
-| `.venv/bin/python -m py_compile transcriber_app.py transcription_history.py` | Passou, código de saída 0; compila sem executar os módulos |
-| `git diff --check` | Passou, código de saída 0 |
-| Revisão estática final | Fluxos de gravação, fila, carregamento sob demanda, histórico, exclusão, exportação e fechamento revisados; sem outros bloqueios identificados |
+| Sibling feature files vs. integrated commits | Byte-identical (`cmp`) before translation |
+| Syntax compile of app, history module, and tests | Passed on Python 3.12.6 and 3.14.8 |
+| `python -m unittest -v` on Python 3.12.6 (python.org, Tk 8.6) | 26 tests, OK |
+| Same on Python 3.13.12 (uv-managed, Tk 9.0) | 26 tests, OK |
+| Same on Python 3.14.8 (Homebrew, no `_tkinter`) | 23 OK, 3 demo tests skipped |
+| `pip check` in the feature `.venv` (3.14.8) | `No broken requirements found.` |
+| Dependency import (no model, no stream) | faster-whisper 1.2.1, numpy 2.5.3, sounddevice 0.5.6 import successfully; `sounddevice` initializes PortAudio but opens no stream |
+| `import transcriber_app` on Homebrew 3.14.8 | Fails with `No module named '_tkinter'` (interpreter setup, not app code) |
+| `transcriber_app.py --demo` launch, isolated `HOME`, Python 3.12.6 and 3.13.12 | Process stayed up for 6 s with no traceback; macOS reported window `Audio to Text · Demonstração fictícia`; terminated by the check |
+| `git diff --check` | Clean |
+| Existing CI | None configured in the repository |
 
-Todos os comandos shell após a leitura inicial de RTK foram prefixados com `rtk`. As alterações foram feitas com `apply_patch`. O projeto não possui etapa separada de build/empacotamento; a compilação de sintaxe é o check apropriado para esta fatia.
+What the unit tests cover:
 
-## Ajustes decorrentes da revisão
+- History: round trip with Unicode and order, repeated saves, missing file, invalid JSON and UTF-8, unknown version, wrong record types, duplicate IDs, invalid fields (including boolean durations), demo/real mixing in both directions, `os.replace` and `fsync` failures (original preserved, no temporary left behind), recovery after a transient failure, external modification blocking writes, unwritable directory.
+- Export: Markdown content and date format, demo notice, overwrite, failed replace keeping the previous export.
+- Demo isolation (needs Tk): the full simulated flow runs with `sounddevice`, `numpy`, `faster_whisper`, and `ctranslate2` blocked in `sys.modules`, writes only the demo history, persists across a restart, and refuses to load a model.
 
-- Dependências de áudio importadas somente após ação explícita; faster-whisper importado e modelo criado somente no worker de transcrição real.
-- Worker transmite eventos por `queue.Queue`; chamadas Tkinter ficam no loop principal.
-- Erros não substituem o texto de notas. Falhas de salvamento mantêm a nota na sessão, com aviso e marcador de não salva; copiar/exportar continua disponível.
-- Histórico valida versão e registros; corrupção ou alteração externa bloqueia gravação no arquivo original. Escrita de JSON e Markdown usa arquivo temporário e substituição atômica. Falhas na limpeza do temporário não escondem o erro principal.
-- Seleção do histórico protegida contra repetição de eventos. Exclusão fica desabilitada durante captura/processamento.
-- Fechamento confirma perda de operação/notas não salvas e aguarda liberação da captura antes de destruir a janela. A inferência não possui cancelamento cooperativo completo; encerrar o aplicativo descarta o resultado pendente.
+Not verified (requires a person and real hardware):
 
-## Limitações observadas
+- Visual layout, resizing, keyboard focus, and appearance. The demo launch only proves the window opens; nobody inspected it, and no screenshot was taken.
+- Microphone permission prompts, real capture, device errors, first model download, inference quality, and timing.
+- Native dialogs: delete confirmation, Markdown save dialog, close confirmation.
+- Closing during a real recording or transcription.
 
-- A ausência de `_tkinter` no Python local impede demonstração visual neste ambiente. Tk não é instalado por pip; Felipe deve usar Python com suporte a Tk e recriar a `.venv` usando esse interpretador.
-- Instalação bem-sucedida e `pip check` não comprovam carregamento das bibliotecas nativas, compatibilidade de dispositivo ou inferência.
-- Checks de sintaxe não comprovam layout, foco de teclado, seleção de histórico, temporização, diálogos ou permissões macOS.
-- Histórico local não é criptografado. Exclusão não elimina cópias exportadas ou backups. Evitar instâncias simultâneas do mesmo modo, pois não há sincronização multi-instância.
-- O worker solicitado iniciou em segundo plano no mesmo checkout, mas o recibo Orca informa modo `terminal`, seguindo a preferência atual do usuário. A CLI disponível não oferece flag por chamada para forçar headless. Nenhum comando de ativação/troca de foco foi usado. Não foi alterada a preferência global do Orca.
+Setup blocker: Homebrew's `python@3.14` has no `_tkinter`, so the GUI cannot start from the feature `.venv`. Recreate `.venv` with a Tk-enabled Python (python.org 3.12 at `/usr/local/bin/python3` or a uv-managed Python on this machine) before running the app or the manual script. Large audio/model packages were not reinstalled for this check.
 
-## Retomada no Orca
+## First slice — 2026-10-08 (feature checkout)
 
-O worker concluiu com resultado `succeeded` e foi retido sem ação sobre o processo, conforme pedido de manter a sessão disponível. Run: `run_e51a0cfaa212`; Task: `task_b600205e6d68`; Dispatch: `ctx_bd8690343a9b`; terminal: `term_53ecfe12-c437-4d10-bfec-40a11f922737`. Não restam recursos reclamáveis nesse Run. Coordenador e checkout permanecem disponíveis; nenhuma publicação, commit, push, merge ou deploy foi realizada.
+That task, by its scope at the time, created and ran no automated tests, opened no GUI, recorded no audio, and downloaded no model. Validation was limited to static review and the checks below.
 
-## Roteiro manual pendente para Felipe
+| Check | Result |
+| --- | --- |
+| README, original code, and instructions read | Done; no `AGENTS.md` in the checkout |
+| Initial Git state | Clean |
+| Python available | 3.14.8 |
+| Install into `.venv` | faster-whisper 1.2.1, sounddevice 0.5.6, numpy 2.5.3 and dependencies |
+| `.venv/bin/python -m pip check` | Passed |
+| Tk availability | `find_spec("_tkinter")` returned `None`; this interpreter cannot open the GUI |
+| `py_compile` of both modules | Passed |
+| `git diff --check` | Passed |
+| Final static review | Recording, queue, on-demand loading, history, deletion, export, and close flows reviewed; no other blockers found |
 
-Executar somente após configurar um Python com Tk. A parte de captura requer participação explícita do usuário.
+Changes made during that review:
 
-1. Abrir com `--demo`. Confirmar que o histórico é fictício e não ocorre pedido de microfone ou download de modelo. Conferir legibilidade, redimensionamento e navegação por teclado.
-2. Simular o fluxo disponível na demo e conferir estados, seleção, cópia, exportação Markdown e exclusão confirmada. Reiniciar a demo e conferir persistência. O histórico real deve continuar separado.
-3. Abrir no modo real. Confirmar que iniciar a janela não captura áudio. Iniciar/parar uma gravação curta, com participação do usuário, e conferir timer, carregamento inicial, transcrição, nota salva e reabertura.
-4. Conferir erro de dispositivo/permissão, ausência de fala e falha de download/inferência. Notas anteriores devem permanecer disponíveis e controles devem permitir nova tentativa.
-5. Em diretório de dados de demonstração, após cópia de segurança, revisar comportamento com histórico inválido e falha de escrita. Arquivo inválido deve ser preservado; uma nota que não pôde ser salva deve permanecer acessível para exportação/cópia.
-6. Conferir cancelamento do diálogo de exportação, destino sem permissão e tentativa de sobrescrever arquivo existente.
-7. Conferir fechamento durante gravação e durante transcrição, incluindo confirmação e liberação do dispositivo. Não presumir que um daemon interrompido terminou a transcrição.
+- Audio dependencies imported only after an explicit action; faster-whisper imported and the model created only in the real transcription worker.
+- The worker sends events through `queue.Queue`; Tkinter calls stay on the main loop.
+- Errors never replace note text. Save failures keep the note for the session with a warning and an unsaved marker; copy and export stay available.
+- History validates version and records; corruption or external edits block writes to the original file. JSON and Markdown use a temporary file plus atomic replace. Cleanup failures never mask the main error.
+- History selection is guarded against repeated events; deletion is disabled during capture or processing.
+- Closing confirms loss of in-progress work or unsaved notes and waits for the capture to be released before destroying the window. Inference has no cooperative cancellation; closing discards a pending result.
 
-Importação, atalho global, instalador e GIF permanecem planejados. Só avançar depois de resolver os problemas encontrados nesse roteiro. Não publicar artefatos de portfólio nesta sessão.
+Known limitations from that slice still apply: a successful install and `pip check` do not prove native library loading, device compatibility, or inference; history is unencrypted; deletion does not remove exports or backups; simultaneous instances of the same mode are not coordinated.
+
+## Pending manual script for Felipe
+
+Run only with a Tk-enabled Python. The capture steps require the user's explicit participation.
+
+1. Open with `--demo`. Confirm the history is fictional and no microphone prompt or model download happens. Check legibility, resizing, and keyboard navigation.
+2. Run the simulated flow and check states, selection, copy, Markdown export, and confirmed deletion. Restart the demo and check persistence. The real history must stay separate.
+3. Open the real mode. Confirm opening the window does not capture audio. Record a short note and check the timer, first load, transcription, saved note, and reopening.
+4. Check device/permission errors, no speech, and download/inference failure. Previous notes must remain available and controls must allow a retry.
+5. With a backup of the demo data directory, check an invalid history and a write failure. The invalid file must be preserved; an unsaved note must remain available to copy or export.
+6. Check cancelling the export dialog, an unwritable destination, and overwriting an existing file.
+7. Check closing during recording and during transcription, including the confirmation and device release. Do not assume an interrupted daemon finished the transcription.
+
+Only move to the planned next steps after fixing what this script finds.
