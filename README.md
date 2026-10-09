@@ -2,6 +2,10 @@
 
 [![Tests](https://github.com/xfelipealves/audio-to-text/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/xfelipealves/audio-to-text/actions/workflows/tests.yml)
 
+![Audio to Text: a sound waveform flowing into text notes and a local storage box](docs/images/readme-cover.png)
+
+*Generated illustration, not a screenshot of the app. See [docs/images/README.md](docs/images/README.md) for provenance.*
+
 A local-first Python/Tkinter desktop app for Brazilian Portuguese voice notes. It records from the microphone only when you ask, transcribes on your machine with [faster-whisper](https://github.com/SYSTRAN/faster-whisper), and keeps a persistent history you can copy, export to Markdown, or delete. A `--demo` mode shows the whole flow with fictional data and never touches the microphone or the model.
 
 The interface text is intentionally in Brazilian Portuguese, the language the app transcribes. Code, comments, and documentation are in English.

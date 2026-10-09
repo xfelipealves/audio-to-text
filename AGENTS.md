@@ -33,7 +33,7 @@ Homebrew `python@3.14` lacks `_tkinter`; demo tests are skipped there. Use pytho
 - Keep demo and real histories in separate files and never mix their records.
 - Agents must not record from the microphone, fake audio capture, or download Whisper models. Report those flows as unverified instead.
 - Never commit `.venv/`, bytecode, models, history JSON, exports, or any personal note data.
-- Do not present generated images as app screenshots; portfolio images must come from the real `--demo` window.
+- Generated images must be labeled as illustrations with provenance in `docs/images/README.md`; never present them as app screenshots. Screenshots must come from the real `--demo` window.
 - Update `README.md` and `docs/VALIDATION.md` when behavior, setup, or verification status changes.
 
 ## CI
