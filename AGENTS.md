@@ -16,8 +16,8 @@ Local-first Tkinter desktop app that records Brazilian Portuguese voice notes an
 Prefix every shell command with `rtk` (use `rtk proxy <cmd>` for commands without a dedicated filter).
 
 ```bash
-rtk proxy python3 -m unittest -v          # use a Tk-enabled Python to run the demo tests
-rtk proxy python3 -m py_compile transcriber_app.py transcription_history.py
+rtk proxy python3 -m py_compile transcriber_app.py transcription_history.py tests/*.py
+rtk proxy python3 -m unittest discover -v # use a Tk-enabled Python to run the demo tests
 rtk proxy .venv/bin/python -m pip check
 rtk proxy .venv/bin/python transcriber_app.py --demo
 ```
@@ -35,6 +35,10 @@ Homebrew `python@3.14` lacks `_tkinter`; demo tests are skipped there. Use pytho
 - Never commit `.venv/`, bytecode, models, history JSON, exports, or any personal note data.
 - Do not present generated images as app screenshots; portfolio images must come from the real `--demo` window.
 - Update `README.md` and `docs/VALIDATION.md` when behavior, setup, or verification status changes.
+
+## CI
+
+`.github/workflows/tests.yml` mirrors the commands above on Python 3.12 under `xvfb-run`. Do not add `requirements.txt` installs, model downloads, or microphone access to it.
 
 ## Git
 

@@ -34,6 +34,7 @@ The original slice (2026-10-08) was explicitly limited: static review and syntax
 - A standard-library `unittest` suite was added for history persistence, atomic write failures, corrupt data, Markdown export, and demo isolation.
 - All documentation was translated to English and a canonical `AGENTS.md` was added. The UI remains in Brazilian Portuguese by design.
 - `master` was pushed normally (no force push).
+- A GitHub Actions workflow now compiles the sources and runs the unit tests on Python 3.12 with a virtual display and no audio/model packages.
 
 The restriction against real microphone capture, model downloads, and faked captures still holds for automated agents. Those flows remain manual; see [VALIDATION.md](VALIDATION.md).
 
@@ -48,7 +49,6 @@ These depend on Felipe's manual validation of the first slice.
 | Global shortcut | Start/stop recording with an explicit user action | macOS permissions assessed, capture indicator always visible, shortcut conflicts resolved |
 | macOS installer | Packaged app with model and permission instructions | Validated on a clean machine; signing, distribution, and license decided before publishing |
 | Short GIF | 10–20 second demo of the note and export flow | Uses only `--demo` and fictional data; checked for legibility and absence of personal data |
-| CI | Run the unit tests on push | A runner with Tk (or the demo tests skipped) and no model download |
 
 ## Validation and continuity
 

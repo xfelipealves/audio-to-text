@@ -16,7 +16,7 @@ The feature work was integrated into `master`, unit tests were added, and checks
 | `import transcriber_app` on Homebrew 3.14.8 | Fails with `No module named '_tkinter'` (interpreter setup, not app code) |
 | `transcriber_app.py --demo` launch, isolated `HOME`, Python 3.12.6 and 3.13.12 | Process stayed up for 6 s with no traceback; macOS reported window `Audio to Text · Demonstração fictícia`; terminated by the check |
 | `git diff --check` | Clean |
-| Existing CI | None configured in the repository |
+| Existing CI | None at integration time; added afterwards (see below) |
 
 What the unit tests cover:
 
@@ -32,6 +32,18 @@ Not verified (requires a person and real hardware):
 - Closing during a real recording or transcription.
 
 Setup blocker: Homebrew's `python@3.14` has no `_tkinter`, so the GUI cannot start from the feature `.venv`. Recreate `.venv` with a Tk-enabled Python (python.org 3.12 at `/usr/local/bin/python3` or a uv-managed Python on this machine) before running the app or the manual script. Large audio/model packages were not reinstalled for this check.
+
+## Continuous integration — 2026-10-09
+
+`.github/workflows/tests.yml` runs on every push to `master`, on pull requests, and on manual dispatch:
+
+1. `actions/setup-python` with Python 3.12 on `ubuntu-latest`.
+2. Installs only `xvfb` with `apt-get`. `requirements.txt` is not installed, so no audio library or Whisper model is downloaded.
+3. `python -m py_compile transcriber_app.py transcription_history.py tests/*.py`.
+4. Opens and destroys `tkinter.Tk()` under `xvfb-run`; the job fails if Tk is unavailable instead of skipping the demo tests.
+5. `xvfb-run -a python -m unittest discover -v` (26 tests expected, 0 skips).
+
+CI proves the history logic and demo isolation on Linux. It does not prove macOS layout, microphone access, model download, inference, or native dialogs; those remain in the manual script below.
 
 ## First slice — 2026-10-08 (feature checkout)
 

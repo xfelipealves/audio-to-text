@@ -1,5 +1,7 @@
 # Audio to Text
 
+[![Tests](https://github.com/xfelipealves/audio-to-text/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/xfelipealves/audio-to-text/actions/workflows/tests.yml)
+
 A local-first Python/Tkinter desktop app for Brazilian Portuguese voice notes. It records from the microphone only when you ask, transcribes on your machine with [faster-whisper](https://github.com/SYSTRAN/faster-whisper), and keeps a persistent history you can copy, export to Markdown, or delete. A `--demo` mode shows the whole flow with fictional data and never touches the microphone or the model.
 
 The interface text is intentionally in Brazilian Portuguese, the language the app transcribes. Code, comments, and documentation are in English.
@@ -95,10 +97,13 @@ Transcription uses `language="pt"`, `beam_size=5`, `temperature=0.0`, `condition
 ## Tests
 
 ```bash
-python3 -m unittest -v
+python3 -m py_compile transcriber_app.py transcription_history.py tests/*.py
+python3 -m unittest discover -v
 ```
 
 The suite uses only the standard library and temporary directories: 23 history tests (round trip, atomic write failures, corrupt and mixed data, external edits, Markdown export) and 3 demo isolation tests that block `sounddevice`, `numpy`, `faster_whisper`, and `ctranslate2` imports and assert demo notes never reach the real history. The demo tests are skipped when the interpreter has no Tk. No test uses the microphone or downloads a model.
+
+CI ([`.github/workflows/tests.yml`](.github/workflows/tests.yml)) runs the same two commands on Ubuntu with Python 3.12 under `xvfb-run`. It installs only `xvfb`, never the audio or model packages, and checks that `tkinter.Tk()` opens before the tests run, so the demo tests cannot be skipped silently there.
 
 ## Troubleshooting
 
