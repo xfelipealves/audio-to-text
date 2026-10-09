@@ -1,158 +1,84 @@
 # Audio to Text
 
-A small macOS desktop application that records microphone audio and transcribes it locally with [faster-whisper](https://github.com/SYSTRAN/faster-whisper). It is designed for short spoken notes, drafts, and conversations in Brazilian Portuguese, including technical terms in English.
+Aplicativo desktop Python/Tkinter para notas de voz em português brasileiro, com transcrição local usando faster-whisper. Esta versão de portfólio acrescenta histórico persistente, exportação Markdown e demonstração com dados fictícios.
 
-## Features
+## Recursos
 
-- Simple Tkinter window with **Start Recording** and **Stop Recording** controls.
-- Recording timer shown while audio is being captured.
-- Local Portuguese transcription using Whisper through `faster-whisper`.
-- Audio captured as mono, 16 kHz, 32-bit floating-point samples.
-- Lazy model loading: the Whisper model is loaded when the first transcription starts, not when the window opens.
-- Transcription history kept in the text area for the current app session.
-- **Copy Text** button for sending the current text to the macOS clipboard.
+- Interface em português com histórico selecionável e área de leitura.
+- Estados explícitos de gravação, carregamento do modelo, transcrição e erro.
+- Histórico JSON local, exclusão confirmada e exportação Markdown da nota selecionada.
+- Cópia da nota selecionada para a área de transferência.
+- Modelo `base` em CPU/int8, carregado na primeira transcrição e reutilizado na sessão.
+- Modo `--demo` sem acesso ao microfone nem download/carregamento de modelo.
 
-## Architecture And Data Flow
+## Instalação local
+
+Requer Python 3.11+ **com Tkinter funcional**. Tkinter depende da instalação do Python e não é fornecido pelo requirements.txt. O Python Homebrew disponível nesta sessão não possui a extensão `_tkinter`; use um interpretador com Tk e recrie o ambiente com ele antes de abrir a interface.
+
+No diretório deste checkout:
+
+```bash
+rtk proxy python3 -m venv .venv
+rtk proxy .venv/bin/python -m pip install -r requirements.txt
+rtk proxy .venv/bin/python -m pip check
+```
+
+O ambiente .venv não é versionado. A demo dispensa as dependências de áudio, mas Tkinter é necessário nos dois modos. A primeira transcrição real pode baixar o modelo e exigir conexão; execuções posteriores reutilizam o cache local.
+
+## Demonstração sem áudio real
+
+```bash
+rtk proxy .venv/bin/python transcriber_app.py --demo
+```
+
+Use a demo para apresentar notas fictícias, simular o fluxo, copiar, apagar e exportar. Ela usa armazenamento separado do histórico real. Não use conversas reais ou gravações em imagens/GIF de portfólio.
+
+## Gravação e transcrição
+
+```bash
+rtk proxy .venv/bin/python transcriber_app.py
+```
+
+1. Inicie a gravação somente quando quiser participar da captura. O aplicativo não grava ao abrir.
+2. Fale em português brasileiro e clique para parar e transcrever.
+3. Aguarde o carregamento do modelo na primeira utilização e a transcrição em segundo plano.
+4. Selecione uma nota para copiar, exportar ou apagar. Falhas aparecem na interface e preservam notas anteriores.
+
+No macOS, a primeira gravação pode solicitar permissão de microfone para o Python ou terminal que iniciou o aplicativo. Caso necessário, revise **Ajustes do Sistema > Privacidade e Segurança > Microfone** e reinicie após mudar a permissão.
+
+## Histórico e privacidade
+
+No macOS, as notas ficam em:
+
+- `~/Library/Application Support/Audio to Text/history.json`
+- `~/Library/Application Support/Audio to Text/demo-history.json` (somente demo)
+
+Nos demais sistemas, o diretório é `~/.local/share/audio-to-text`. A persistência usa substituição atômica. Se o JSON estiver corrompido, o arquivo é preservado e a escrita é bloqueada; faça uma cópia de segurança e recupere ou renomeie o arquivo antes de reiniciar. A interface informa falhas de armazenamento.
+
+O áudio fica em memória e não é salvo em arquivo pelo aplicativo. **O texto das notas é persistido em disco sem criptografia.** Exportar cria Markdown no destino escolhido; copiar coloca texto na área de transferência do sistema. Apagar uma nota não remove exportações, backups ou conteúdo copiado.
+
+A transcrição é local após o modelo estar disponível. O download inicial exige rede; não se presume que o cache do provedor ou a área de transferência sejam livres de acesso à rede.
+
+## Arquitetura
 
 ```mermaid
-flowchart TD
-    A[User clicks Start Recording] --> B[sounddevice InputStream]
-    B --> C[Mono 16 kHz audio frames in memory]
-    C --> D[User clicks Stop Recording]
-    D --> E[Background transcription thread]
-    E --> F[Lazy faster-whisper base model on CPU]
-    F --> G[Portuguese transcription with VAD]
-    G --> H[Tkinter text area and clipboard]
+flowchart LR
+    A[Ação explícita de gravar] --> B[Áudio mono 16 kHz em memória]
+    B --> C[Worker de transcrição]
+    C --> D[faster-whisper local sob demanda]
+    D --> E[Fila de eventos para Tkinter]
+    E --> F[Histórico JSON local]
+    F --> G[Leitura, cópia e Markdown]
 ```
 
-`MicrophoneRecorder` wraps `sounddevice.InputStream` and collects copied audio frames in memory. When recording stops, `SpeechTranscriberApp` joins the frames, starts a daemon worker thread, and calls `WhisperModel.transcribe()` with Portuguese as the requested language. The worker schedules the result back onto Tkinter's main loop so the interface stays responsive.
+O worker comunica progresso e resultados por uma fila, consumida no loop principal do Tkinter. A gravação usa sounddevice e amostras float32. A transcrição mantém `language="pt"`, `beam_size=5`, `temperature=0.0`, VAD e instrução para preservar termos técnicos em inglês. Não há diarização nem timestamps de palavras.
 
-## Prerequisites
+## Limites e continuidade
 
-- macOS.
-- Python 3.11 or newer. The current development environment uses Python 3.12.
-- A working microphone and permission for the Python application that launches the script.
-- A Python installation that includes Tkinter. Check it with:
+Importação de áudio, atalho global, instalador e GIF estão planejados em [docs/PORTFOLIO-PLAN.md](docs/PORTFOLIO-PLAN.md), fora desta fatia. Gravações longas consomem memória e o modelo CPU pode demorar. O aplicativo ainda requer validação manual no macOS com Tkinter e dispositivo disponíveis. Instâncias simultâneas compartilham o mesmo arquivo de histórico; evite abrir mais de uma instância do mesmo modo.
 
-  ```bash
-  python3 -m tkinter
-  ```
+Não foram criados nem executados testes nesta tarefa. A revisão estática, compilação de sintaxe e checagem de dependências não comprovam aparência, permissões, qualidade da transcrição ou diálogos nativos. Resultados e roteiro manual estão em [docs/VALIDATION.md](docs/VALIDATION.md).
 
-  A small Tk window should open. If the module is missing, install Python from [python.org](https://www.python.org/downloads/macos/) and retry.
+## Licença
 
-The first model download requires an internet connection. Xcode Command Line Tools may also be needed if `pip` must build a dependency locally:
-
-```bash
-xcode-select --install
-```
-
-## Installation
-
-Clone the repository using its SSH URL:
-
-```bash
-git clone git@github.com:xfelipealves/audio-to-text.git
-cd audio-to-text
-```
-
-Create and activate a virtual environment, then install the runtime dependencies:
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install faster-whisper sounddevice numpy
-```
-
-The project intentionally does not track `.venv`, Python bytecode, or downloaded model files. Keep the virtual environment activated when running the app.
-
-## Microphone Permissions
-
-On the first recording attempt, macOS may ask for microphone access. Allow the Python application or terminal that starts the script. If access was denied, open **System Settings > Privacy & Security > Microphone**, enable the relevant application, and restart the app.
-
-## Model Download
-
-The default model is `base`, loaded on the first transcription. `faster-whisper` downloads the model from its model source and caches it locally; the download is not repeated on every recording. The initial download can take time and requires network access. Subsequent runs can use the local cache unless it is removed or unavailable.
-
-## Usage
-
-```bash
-source .venv/bin/activate
-python transcriber_app.py
-```
-
-1. Click **Start Recording** and speak in Brazilian Portuguese.
-2. Use English technical terms when needed; the app's prompt asks the model to preserve them.
-3. Click **Stop Recording**. The app transcribes the captured audio in the background and appends the result to the text area.
-4. Click **Copy Text** to copy the text currently visible in the text area.
-
-The window can remain open for multiple recordings. The loaded model is reused during that process.
-
-## Model Tuning
-
-The model and CPU settings are defined in `_get_model()` in `transcriber_app.py`:
-
-```python
-self.model = WhisperModel(
-    "base",
-    device="cpu",
-    compute_type="int8",
-)
-```
-
-To trade speed and memory for accuracy, replace `"base"` with a supported model such as `"small"`, `"medium"`, or `"large-v2"`. Larger models generally improve recognition but take longer and require more memory. Keep `device="cpu"` and `compute_type="int8"` for the current CPU-oriented setup unless you are intentionally changing the runtime configuration.
-
-The transcription call also uses `beam_size=5`, `language="pt"`, `task="transcribe"`, `temperature=0.0`, `condition_on_previous_text=False`, and `vad_filter=True`. The `initial_prompt` can be edited when the application needs domain-specific vocabulary.
-
-## Troubleshooting
-
-### Microphone access errors
-
-Check macOS microphone permissions, confirm that the intended input device is available, and restart the app after changing permissions. The application prints audio callback status messages to the console and shows a dialog when starting the stream fails.
-
-### The model takes a long time to load
-
-The first transcription includes model loading and download time. Confirm that the machine has internet access, or wait for the cached model to load. Choose a smaller model such as `base` if transcription is too slow.
-
-### The result contains no speech
-
-Speak close enough to the selected microphone and record a clear sample. The app returns `[No speech detected]` when Whisper produces no text.
-
-### English terms are changed
-
-Add representative vocabulary to the `initial_prompt` in `transcriber_app.py`. The application requests Portuguese transcription while asking Whisper to retain technical English terms, but recognition is still model-dependent.
-
-### Tkinter or dependency import errors
-
-Confirm that the virtual environment is active and reinstall dependencies with the commands above. Run `python3 -m tkinter` to isolate Tkinter installation problems from application problems.
-
-## Privacy
-
-Transcription runs locally after the model is available. Recorded audio is held in memory and is not written to an audio file by this application. Transcription text remains in the Tkinter window until the process exits, and **Copy Text** places it on the macOS clipboard. Network access is required for the initial model download; this README does not claim that the model provider or operating system clipboard is network-free.
-
-## Limitations
-
-- The current implementation targets macOS and uses a Tkinter desktop UI.
-- It records microphone input only; it does not accept audio files.
-- Audio is kept in memory during a recording and is not persisted by the app.
-- Transcription is forced to Portuguese (`language="pt"`) and does not provide speaker diarization or timestamps.
-- The current model configuration is CPU-only and may be slow for long recordings or larger models.
-- There is no packaged installer, configuration file, automated test suite, or export format beyond copying text.
-
-## Testing And Status
-
-This is an early, local utility rather than a packaged release. There is no automated test suite yet. The available syntax check is:
-
-```bash
-python -m py_compile transcriber_app.py
-```
-
-This command may create an ignored file under `__pycache__/`; do not commit it.
-
-## Contributing
-
-Open an issue for a bug or proposal, or submit a pull request with a focused change. For code changes, preserve the local-first behavior, update the README when setup or behavior changes, and run the syntax check above before opening a pull request.
-
-## License Status
-
-No `LICENSE` file is currently included in this repository. No open-source license is claimed here; obtain permission before redistributing or reusing the code.
+Não há LICENSE no repositório nem declaração de licença de código aberto. Distribuição e instalador dependem de uma decisão de licença antes de publicação.
