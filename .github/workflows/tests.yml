@@ -1,0 +1,36 @@
+name: Tests
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  unittest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Only a virtual display is installed. Audio and model packages are not
+      # installed: the tests use the standard library and block those imports.
+      - name: Install virtual display
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends xvfb
+
+      - name: Compile sources
+        run: python -m py_compile transcriber_app.py transcription_history.py tests/*.py
+
+      # Fail here instead of silently skipping the demo isolation tests.
+      - name: Check Tk availability
+        run: xvfb-run -a python -c "import tkinter; root = tkinter.Tk(); print('Tk', root.tk.call('info', 'patchlevel')); root.destroy()"
+
+      - name: Run unit tests
+        run: xvfb-run -a python -m unittest discover -v
